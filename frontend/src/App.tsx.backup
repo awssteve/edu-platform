@@ -1,0 +1,75 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
+import MainLayout from './components/Layout/MainLayout';
+import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
+import CourseList from './pages/Course/CourseList';
+import CourseDetail from './pages/Course/CourseDetail';
+import CourseCreate from './pages/Teacher/CourseCreate';
+import MaterialUpload from './pages/Teacher/MaterialUpload';
+import QuestionGenerator from './pages/Teacher/QuestionGenerator';
+import AssignmentCreator from './pages/Teacher/AssignmentCreator';
+import Learning from './pages/Student/Learning';
+import MyAssignments from './pages/Student/MyAssignments';
+import MyProgress from './pages/Student/MyProgress';
+import Discussion from './pages/Shared/Discussion';
+import Dashboard from './pages/Dashboard/Dashboard';
+import MyCertificates from './pages/Student/MyCertificates';
+import './App.css';
+
+// Protected Route Component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+function App() {
+  return (
+    <ConfigProvider locale={zhCN} theme={{
+      token: {
+        colorPrimary: '#1890ff',
+        borderRadius: 8,
+      },
+    }}>
+      <BrowserRouter>
+        <Routes>
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Main App */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Dashboard />} />
+            
+            {/* Teacher Routes */}
+            <Route path="courses" element={<CourseList />} />
+            <Route path="courses/create" element={<CourseCreate />} />
+            <Route path="courses/:id" element={<CourseDetail />} />
+            <Route path="courses/:id/materials" element={<MaterialUpload />} />
+            <Route path="courses/:id/questions" element={<QuestionGenerator />} />
+            <Route path="courses/:id/assignments" element={<AssignmentCreator />} />
+            
+            {/* Student Routes */}
+            <Route path="learning/:courseId" element={<Learning />} />
+            <Route path="assignments" element={<MyAssignments />} />
+            <Route path="progress" element={<MyProgress />} />
+            <Route path="certificates" element={<MyCertificates />} />
+            
+            {/* Shared Routes */}
+            <Route path="discussions/:courseId" element={<Discussion />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ConfigProvider>
+  );
+}
+
+export default App;
