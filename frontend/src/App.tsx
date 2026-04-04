@@ -21,17 +21,59 @@ import { PermissionsPage, RolesPage } from './pages/Admin';
 import { TeachersList, StudentsList } from './pages/Users';
 import { SchoolSubscriptions, EditCourse } from './pages/EditPages';
 import { EditMaterial, EditQuestion, EditAssignment } from './pages/EditPages';
+import AITutor from './pages/AITutor';
+import VideoConferenceRoom from './pages/VideoConferenceRoom';
+import { MainLayout } from './components/MainLayout';
+import LiveKitVideoConference from './components/LiveKitVideoConference';
 
 const API_BASE_URL = 'http://localhost:8000';
 
 const appTheme = {
   token: {
-    colorPrimary: '#667eea',
+    colorPrimary: '#1890FF', // 改为蓝色，更符合教育平台
     colorBgContainer: '#f5f5f5',
+    colorSuccess: '#52C41A',
+    colorWarning: '#FAAD14',
+    colorError: '#F5222D',
+    colorInfo: '#1890FF',
   },
 };
 
 function App() {
+  const [videoModalVisible, setVideoModalVisible] = React.useState(false);
+  const [currentRoom, setCurrentRoom] = React.useState('classroom-101');
+  const [user, setUser] = React.useState(null);
+
+  // 全局设置视频会议函数，所有页面都能使用
+  React.useEffect(() => {
+    console.log('🚀 App组件useEffect开始执行');
+
+    const loadUser = () => {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+        console.log('✅ 用户已加载:', JSON.parse(savedUser).username);
+      }
+    };
+    loadUser();
+
+    // 设置全局函数
+    (window as any).openVideoConference = (roomName: string) => {
+      console.log('🎥 全局函数打开视频会议:', roomName);
+      setCurrentRoom(roomName);
+      setVideoModalVisible(true);
+    };
+
+    console.log('✅ 全局函数已设置，类型:', typeof (window as any).openVideoConference);
+
+    // 验证函数是否设置成功
+    if (typeof (window as any).openVideoConference === 'function') {
+      console.log('✅ 全局函数验证成功');
+    } else {
+      console.error('❌ 全局函数设置失败！');
+    }
+  }, []);
+
   return (
     <ConfigProvider theme={appTheme}>
       <Router>
@@ -42,7 +84,7 @@ function App() {
           <Route path="/auth/register" element={<Register />} />
           <Route path="/auth/forgot-password" element={<ForgotPassword />} />
           <Route path="/auth/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<DashboardWithLayout />} />
           <Route path="/test" element={<TestBackend />} />
 
           {/* 课程管理 */}
@@ -79,6 +121,9 @@ function App() {
           <Route path="/courses/:courseId/discussions" element={<DiscussionTopicsList />} />
           <Route path="/courses/:courseId/discussions/create" element={<CreateTopic />} />
           <Route path="/courses/:courseId/discussions/:topicId" element={<DiscussionTopicDetail />} />
+
+          {/* AI助教 - 24*7在线教学助手 */}
+          <Route path="/courses/:courseId/ai-tutor" element={<AITutor />} />
 
           {/* 证书 */}
           <Route path="/certificates" element={<CertificatesList />} />
@@ -129,7 +174,21 @@ function App() {
           <Route path="/students" element={<StudentsList />} />
           <Route path="/students/add" element={<StudentsList />} />
           <Route path="/students/import" element={<StudentsList />} />
+
+          {/* 视频会议 */}
+          <Route path="/video-conference/:roomName" element={<VideoConferenceRoom />} />
         </Routes>
+
+        {/* 全局视频会议Modal */}
+        {user && (
+          <LiveKitVideoConference
+            visible={videoModalVisible}
+            onClose={() => setVideoModalVisible(false)}
+            roomId={currentRoom}
+            userId={user.id || '1'}
+            username={user.username || 'Guest'}
+          />
+        )}
       </Router>
     </ConfigProvider>
   );
@@ -242,8 +301,8 @@ function Login() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `username=${formData.username}&password=${formData.password}`,
       });
 
       const data = await response.json();
@@ -559,9 +618,173 @@ function Register() {
   );
 }
 
+function DashboardWithLayout() {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser && !user) {
+      setUser(JSON.parse(savedUser));
+    } else if (!savedUser && !user) {
+      navigate('/auth/login');
+    }
+  }, [navigate, user]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    message.success('已退出登录');
+    navigate('/');
+  };
+
+  const handleCardHover = (e) => {
+    e.currentTarget.style.transform = 'translateY(-5px)';
+  };
+
+  const handleItemHover = (e) => {
+    e.currentTarget.style.transform = 'translateX(5px)';
+  };
+
+  if (!user) {
+    return <div style={{ padding: '40px', textAlign: 'center' }}>加载中...</div>;
+  }
+
+  return (
+    <div style={{ padding: '40px', background: '#f5f5f5', minHeight: '100vh' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+          <div>
+            <h1 style={{ fontSize: '32px', color: '#333', marginBottom: '10px', fontWeight: '700' }}>
+              仪表板
+            </h1>
+            <p style={{ color: '#666', fontSize: '16px' }}>
+              欢迎回来，{user?.full_name || user?.username}
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '10px 25px',
+              fontSize: '16px',
+              background: '#ff4d4f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              transition: 'all 0.3s',
+              boxShadow: '0 4px 15px rgba(255, 77, 79, 0.4)',
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = '#f5222d'}
+            onMouseOut={(e) => e.currentTarget.style.background = '#ff4d4f'}
+          >
+            退出登录
+          </button>
+        </div>
+
+        {/* 视频会议快速入口 */}
+        <div style={{
+          marginBottom: '30px',
+          padding: '20px',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '12px',
+          color: 'white'
+        }}>
+          <h2 style={{ color: 'white', marginBottom: '15px' }}>🎥 视频会议</h2>
+          <p style={{ marginBottom: '15px' }}>点击按钮进入视频会议室：</p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => (window as any).openVideoConference('classroom-101')}
+              style={{
+                padding: '15px 25px',
+                fontSize: '16px',
+                background: 'white',
+                color: '#667eea',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              教室101
+            </button>
+            <button
+              onClick={() => (window as any).openVideoConference('study-group')}
+              style={{
+                padding: '15px 25px',
+                fontSize: '16px',
+                background: 'white',
+                color: '#667eea',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              学习小组
+            </button>
+            <button
+              onClick={() => (window as any).openVideoConference('meeting-room')}
+              style={{
+                padding: '15px 25px',
+                fontSize: '16px',
+                background: 'white',
+                color: '#667eea',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              会议室
+            </button>
+          </div>
+        </div>
+
+        {/* LiveKit视频会议Modal */}
+        {user && (
+          <LiveKitVideoConference
+            visible={videoModalVisible}
+            onClose={() => setVideoModalVisible(false)}
+            roomId={currentRoom}
+            userId={user.id || '1'}
+            username={user.username || 'Guest'}
+          />
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          <div style={{ padding: '30px', background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', transition: 'all 0.3s' }} onMouseOver={handleCardHover}>
+            <div style={{ fontSize: '48px', marginBottom: '15px', color: '#667eea' }}>📚</div>
+            <h3 style={{ marginBottom: '15px', color: '#333', fontSize: '20px', fontWeight: '600' }}>我的课程</h3>
+            <p style={{ color: '#999', fontSize: '16px' }}>暂无课程</p>
+          </div>
+          <div style={{ padding: '30px', background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', transition: 'all 0.3s' }} onMouseOver={handleCardHover}>
+            <div style={{ fontSize: '48px', marginBottom: '15px', color: '#52c41a' }}>📊</div>
+            <h3 style={{ marginBottom: '15px', color: '#333', fontSize: '20px', fontWeight: '600' }}>学习进度</h3>
+            <p style={{ color: '#999', fontSize: '16px' }}>暂无进度</p>
+          </div>
+          <div style={{ padding: '30px', background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', transition: 'all 0.3s' }} onMouseOver={handleCardHover}>
+            <div style={{ fontSize: '48px', marginBottom: '15px', color: '#faad14' }}>📜</div>
+            <h3 style={{ marginBottom: '15px', color: '#333', fontSize: '20px', fontWeight: '600' }}>我的证书</h3>
+            <p style={{ color: '#999', fontSize: '16px' }}>暂无证书</p>
+          </div>
+          <div style={{ padding: '30px', background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', transition: 'all 0.3s' }} onMouseOver={handleCardHover}>
+            <div style={{ fontSize: '48px', marginBottom: '15px', color: '#ff4d4f' }}>💬</div>
+            <h3 style={{ marginBottom: '15px', color: '#333', fontSize: '20px', fontWeight: '600' }}>讨论区</h3>
+            <p style={{ color: '#999', fontSize: '16px' }}>暂无讨论</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const [videoModalVisible, setVideoModalVisible] = useState(false);
+  const [currentRoom, setCurrentRoom] = useState('classroom-101');
 
   React.useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -585,6 +808,11 @@ function Dashboard() {
 
   const handleItemHover = (e) => {
     e.currentTarget.style.transform = 'translateX(5px)';
+  };
+
+  const openVideoConference = (roomName: string) => {
+    setCurrentRoom(roomName);
+    setVideoModalVisible(true);
   };
 
   if (!user) {
@@ -623,6 +851,76 @@ function Dashboard() {
             退出登录
           </button>
         </div>
+
+        {/* 视频会议快速入口 */}
+        <div style={{
+          marginBottom: '30px',
+          padding: '20px',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '12px',
+          color: 'white'
+        }}>
+          <h2 style={{ color: 'white', marginBottom: '15px' }}>🎥 视频会议</h2>
+          <p style={{ marginBottom: '15px' }}>点击按钮进入视频会议室：</p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => (window as any).openVideoConference('classroom-101')}
+              style={{
+                padding: '15px 25px',
+                fontSize: '16px',
+                background: 'white',
+                color: '#667eea',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              教室101
+            </button>
+            <button
+              onClick={() => (window as any).openVideoConference('study-group')}
+              style={{
+                padding: '15px 25px',
+                fontSize: '16px',
+                background: 'white',
+                color: '#667eea',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              学习小组
+            </button>
+            <button
+              onClick={() => (window as any).openVideoConference('meeting-room')}
+              style={{
+                padding: '15px 25px',
+                fontSize: '16px',
+                background: 'white',
+                color: '#667eea',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              会议室
+            </button>
+          </div>
+        </div>
+
+        {/* LiveKit视频会议Modal */}
+        {user && (
+          <LiveKitVideoConference
+            visible={videoModalVisible}
+            onClose={() => setVideoModalVisible(false)}
+            roomId={currentRoom}
+            userId={user.id || '1'}
+            username={user.username || 'Guest'}
+          />
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
           <div style={{ padding: '30px', background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', transition: 'all 0.3s' }} onMouseOver={handleCardHover}>

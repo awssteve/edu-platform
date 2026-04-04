@@ -1,10 +1,12 @@
 from pydantic_settings import BaseSettings
 from typing import List
+import secrets
+import os
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/edu_platform"
-    TEST_DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/edu_platform_test"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./edu_platform.db")
+    TEST_DATABASE_URL: str = os.getenv("TEST_DATABASE_URL", "sqlite:///./edu_platform_test.db")
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -19,7 +21,7 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str = ""
 
     # JWT
-    JWT_SECRET_KEY: str = "your-secret-key-here"
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(32))
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -33,6 +35,11 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+
+    # LiveKit Video Conferencing
+    LIVEKIT_API_KEY: str = ""
+    LIVEKIT_API_SECRET: str = ""
+    LIVEKIT_URL: str = "ws://localhost:7880"
 
     # Payment
     WECHAT_PAY_MCH_ID: str = ""
