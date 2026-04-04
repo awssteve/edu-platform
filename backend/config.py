@@ -12,9 +12,9 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # AI Models
-    OPENAI_API_KEY: str = ""
-    ANTHROPIC_API_KEY: str = ""
-    ZHIPU_API_KEY: str = ""
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    ZHIPU_API_KEY: str = os.getenv("ZHIPU_API_KEY", "")
 
     # Qdrant
     QDRANT_URL: str = "http://localhost:6333"
